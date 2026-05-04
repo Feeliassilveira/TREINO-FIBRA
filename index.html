@@ -1,27 +1,425 @@
-function handleBulkUpload(e) {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Treino Fibrado 💪</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root { --bg:#070710; --bg2:#0e0e1a; --bg3:#0a0a14; --border:#1c1c2a; --text:#e8e8e0; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'Barlow Condensed',sans-serif; min-height:100vh; }
+  ::-webkit-scrollbar { width:3px; height:3px; }
+  ::-webkit-scrollbar-thumb { background:#252535; border-radius:2px; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
 
-  if (!state.images) state.images = {};
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes modalPop { from{opacity:0;transform:scale(0.94)} to{opacity:1;transform:scale(1)} }
+  @keyframes dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  let fileIndex = 0;
+  #header { position:sticky; top:0; z-index:100; background:linear-gradient(180deg,#0e0e1c 0%,#070710 100%); padding:16px 16px 12px; }
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .header-label { font-size:9px; letter-spacing:5px; font-weight:700; }
+  .header-title { font-size:24px; font-weight:900; letter-spacing:0.5px; line-height:1.1; }
+  .week-badge { border-radius:12px; padding:8px 14px; text-align:center; min-width:64px; }
+  .week-badge-num { font-size:24px; font-weight:900; line-height:1; }
+  .week-badge-lbl { font-size:8px; color:#444; letter-spacing:2px; margin-top:2px; }
+  .nav { display:flex; gap:6px; }
+  .nav-btn { flex:1; padding:9px 0; border-radius:9px; font-family:inherit; font-weight:800; font-size:12px; letter-spacing:1px; cursor:pointer; transition:all .22s; border:1px solid #1e1e2e; background:#12121e; color:#444; }
 
-  days.forEach(day => {
-    workoutPlan[day].exercises.forEach(ex => {
-      if (files[fileIndex]) {
-        const reader = new FileReader();
+  .day-tabs { display:flex; gap:6px; padding:14px 14px 0; overflow-x:auto; scrollbar-width:none; }
+  .day-tabs::-webkit-scrollbar { display:none; }
+  .day-btn { flex:0 0 auto; min-width:62px; background:var(--bg2); color:#555; border:1.5px solid var(--border); border-radius:13px; padding:10px 8px 8px; font-family:inherit; cursor:pointer; transition:all .22s; position:relative; text-align:center; }
+  .day-btn-dot { position:absolute; top:-4px; right:-4px; width:10px; height:10px; border-radius:50%; animation:dot 2s infinite; }
 
-        reader.onload = function(ev) {
-          const key = `${day}-${ex.id}`;
-          state.images[key] = ev.target.result;
+  .day-info { padding:16px 16px 10px; }
+  .day-info-label { font-size:9px; letter-spacing:5px; font-weight:700; }
+  .day-info-title { font-size:30px; font-weight:900; }
+  .prog-bar-meta { display:flex; justify-content:space-between; margin:10px 0 5px; }
+  .prog-bar-meta span { font-size:11px; color:#444; }
+  .prog-bar-bg { height:4px; background:#14141e; border-radius:2px; }
+  .prog-bar-fill { height:100%; border-radius:2px; transition:width .5s; }
 
-          localStorage.setItem("fc_images", JSON.stringify(state.images));
-          render();
-        };
+  .cards { padding:2px 14px 80px; display:flex; flex-direction:column; gap:8px; }
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:16px; overflow:hidden; animation:fadeUp .3s ease both; transition:border-color .3s,background .3s; }
+  .card-top { display:flex; align-items:center; gap:10px; padding:14px; }
+  .check-btn { width:32px; height:32px; border-radius:9px; flex-shrink:0; background:transparent; border:2px solid #2a2a3a; color:#000; font-size:16px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .22s; }
+  .card-info { flex:1; min-width:0; }
+  .card-name { font-size:15px; font-weight:800; color:#e8e8e0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:color .3s; }
+  .card-name.done { color:#444; text-decoration:line-through; }
+  .card-sets { font-size:11px; color:#3a3a50; margin-top:3px; font-family:'Barlow',sans-serif; }
+  .card-thumb { width:48px; height:48px; border-radius:10px; object-fit:cover; flex-shrink:0; cursor:pointer; border:2px solid transparent; transition:border-color .2s; }
+  .card-thumb-placeholder { width:48px; height:48px; border-radius:10px; flex-shrink:0; background:#12121e; border:2px dashed #2a2a3a; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; transition:all .2s; }
+  .card-thumb-placeholder:hover { border-color:#555; background:#1a1a2a; }
 
-        reader.readAsDataURL(files[fileIndex]);
-        fileIndex++;
-      }
-    });
-  });
+  .card-load { border-top:1px solid #14141e; padding:10px 14px; background:var(--bg3); display:flex; align-items:center; gap:10px; }
+  .load-label { font-size:9px; letter-spacing:3px; color:#2a2a40; font-weight:700; }
+  .load-display { display:flex; align-items:center; gap:8px; flex:1; }
+  .load-kg { font-size:19px; font-weight:900; }
+  .load-unit { font-size:10px; color:#444; font-weight:400; }
+  .load-diff { font-size:11px; font-weight:800; }
+  .load-empty { font-size:12px; color:#252535; font-family:'Barlow',sans-serif; }
+  .load-edit-btn { margin-left:auto; background:transparent; border:1px solid #1e1e2e; color:#404060; border-radius:7px; padding:5px 11px; font-family:inherit; font-weight:800; font-size:10px; cursor:pointer; }
+  .load-input-wrap { display:flex; gap:6px; align-items:center; flex:1; }
+  .load-input { width:72px; padding:5px 10px; background:#16162a; border-radius:7px; color:#fff; font-family:inherit; font-weight:700; font-size:14px; outline:none; }
+  .load-ok { border:none; border-radius:7px; padding:5px 13px; font-family:inherit; font-weight:800; font-size:12px; cursor:pointer; color:#000; }
+  .load-cancel { background:transparent; border:1px solid #2a2a3a; color:#555; border-radius:7px; padding:5px 9px; font-family:inherit; font-weight:700; font-size:11px; cursor:pointer; }
+  .sparkline { padding:6px 14px 10px; display:flex; gap:3px; align-items:flex-end; height:26px; }
+  .spark-bar { flex:1; max-width:22px; border-radius:2px; transition:height .3s; }
+
+  .modal-overlay { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.95); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal-box { width:100%; max-width:420px; background:#0e0e1a; border-radius:20px; overflow:hidden; animation:modalPop 0.25s ease; }
+  .modal-header { padding:16px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #1a1a2a; }
+  .modal-header-info { flex:1; }
+  .modal-header-tag { font-size:9px; letter-spacing:4px; font-weight:700; margin-bottom:2px; }
+  .modal-header-name { font-size:18px; font-weight:900; line-height:1.1; }
+  .modal-close { width:34px; height:34px; border-radius:10px; background:#1a1a28; border:1px solid #2a2a3a; color:#666; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .modal-img-area { width:100%; height:260px; background:#08080f; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .modal-img-area img { width:100%; height:100%; object-fit:cover; }
+  .modal-img-empty { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .modal-img-empty span { font-size:56px; }
+  .modal-img-empty p { font-size:13px; color:#444; font-family:'Barlow',sans-serif; }
+  .modal-actions { padding:14px 18px 18px; background:#0a0a14; display:flex; flex-direction:column; gap:10px; }
+  .upload-btn { width:100%; padding:14px; border-radius:12px; border:none; font-family:inherit; font-weight:800; font-size:15px; letter-spacing:1px; cursor:pointer; color:#000; transition:opacity .2s; }
+  .upload-btn:hover { opacity:.85; }
+  .remove-btn { width:100%; padding:11px; border-radius:12px; background:transparent; border:1px solid #2a2a3a; color:#555; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; }
+  .modal-tip { border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }
+  .modal-tip-text { font-size:12px; color:#888; line-height:1.5; font-family:'Barlow',sans-serif; }
+  .modal-stats { display:flex; gap:8px; }
+  .modal-stat { flex:1; text-align:center; border-radius:10px; padding:10px 8px; }
+  .modal-stat-val { font-size:24px; font-weight:900; line-height:1; }
+  .modal-stat-lbl { font-size:9px; color:#555; letter-spacing:3px; margin-top:4px; }
+
+  .prog-view { padding:18px 14px 80px; }
+  .prog-section-lbl { font-size:9px; letter-spacing:5px; color:#333; font-weight:700; margin-bottom:12px; }
+  .prog-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:28px; }
+  .prog-card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:14px; cursor:pointer; }
+  .prog-card-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .prog-card-label { font-size:12px; font-weight:800; }
+  .prog-card-sub { font-size:9px; color:#333; letter-spacing:1px; }
+  .prog-card-pct { font-size:22px; font-weight:900; }
+  .prog-card-bar-bg { height:3px; background:#14141e; border-radius:2px; }
+  .prog-card-bar { height:100%; border-radius:2px; }
+  .prog-card-count { font-size:9px; color:#2a2a3a; margin-top:6px; }
+  .hist-section { margin-bottom:18px; }
+  .hist-day-lbl { font-size:11px; font-weight:800; letter-spacing:2px; margin-bottom:8px; }
+  .hist-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
+  .hist-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .hist-card-name { font-size:13px; font-weight:800; }
+  .hist-card-kg { font-size:20px; font-weight:900; }
+  .hist-sparkline { display:flex; gap:3px; align-items:flex-end; height:28px; }
+  .hist-spark-bar { flex:1; border-radius:2px; }
+  .hist-dates { display:flex; justify-content:space-between; margin-top:4px; }
+  .hist-dates span { font-size:8px; color:#252535; }
+  .empty-hist { text-align:center; padding:50px 20px; color:#252535; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="fileInput" accept="image/*" style="display:none"/>
+<script>
+const workoutPlan = {
+  "Segunda":{label:"PEITO + TRÍCEPS",icon:"🏋️",color:"#FF6B35",exercises:[
+    {id:"s1",name:"Supino Reto com Barra",series:4,reps:"10-12",tip:"Mantenha os pés no chão e escápulas retraídas"},
+    {id:"s2",name:"Supino Inclinado Haltere",series:3,reps:"12",tip:"Incline o banco a 30-45° para focar na parte superior"},
+    {id:"s3",name:"Crucifixo na Polia",series:3,reps:"15",tip:"Mantenha leve flexão nos cotovelos durante todo o movimento"},
+    {id:"s4",name:"Tríceps Corda na Polia",series:4,reps:"12-15",tip:"Abra a corda no final para maior contração"},
+    {id:"s5",name:"Tríceps Testa",series:3,reps:"12",tip:"Mantenha os cotovelos fixos apontando para o teto"},
+  ]},
+  "Terça":{label:"COSTAS + BÍCEPS",icon:"🦅",color:"#4ECDC4",exercises:[
+    {id:"t1",name:"Puxada Frontal",series:4,reps:"10-12",tip:"Puxe até o queixo e contraia as escápulas"},
+    {id:"t2",name:"Remada Curvada",series:4,reps:"10-12",tip:"Mantenha as costas retas e puxe até o umbigo"},
+    {id:"t3",name:"Remada Cavalinho",series:3,reps:"12",tip:"Coxas paralelas ao chão, puxe com os cotovelos"},
+    {id:"t4",name:"Rosca Direta",series:3,reps:"12",tip:"Não balance o corpo, isolamento total do bíceps"},
+    {id:"t5",name:"Rosca Martelo",series:3,reps:"12",tip:"Polegar aponta para o teto em todo o movimento"},
+  ]},
+  "Quarta":{label:"PERNAS + GLÚTEO",icon:"🦵",color:"#A855F7",exercises:[
+    {id:"q1",name:"Agachamento Livre",series:4,reps:"10-12",tip:"Joelhos na direção dos pés, desça até 90°"},
+    {id:"q2",name:"Leg Press",series:4,reps:"12-15",tip:"Não trave os joelhos na extensão"},
+    {id:"q3",name:"Cadeira Extensora",series:3,reps:"15",tip:"Segure 1s no topo para maior ativação"},
+    {id:"q4",name:"Mesa Flexora",series:3,reps:"15",tip:"Contraia o glúteo para maior estabilidade"},
+    {id:"q5",name:"Panturrilha em Pé",series:4,reps:"20",tip:"Amplitude completa: calcanhar abaixo da plataforma"},
+  ]},
+  "Quinta":{label:"OMBRO + ABDÔMEN",icon:"🔥",color:"#F59E0B",exercises:[
+    {id:"qu1",name:"Desenvolvimento Haltere",series:4,reps:"10-12",tip:"Não arqueie demais a lombar no topo"},
+    {id:"qu2",name:"Elevação Lateral",series:4,reps:"15",tip:"Cotovelos levemente flexionados, suba até a altura dos ombros"},
+    {id:"qu3",name:"Elevação Frontal",series:3,reps:"12",tip:"Controle a descida para maior tensão"},
+    {id:"qu4",name:"Abdominal Supra",series:4,reps:"20",tip:"Expire na contração, não puxe o pescoço"},
+    {id:"qu5",name:"Prancha",series:4,reps:"40-60s",tip:"Corpo reto como uma prancha, glúteo contraído"},
+    {id:"qu6",name:"Abdominal Bicicleta",series:3,reps:"20",tip:"Cotovelo toca o joelho oposto lentamente"},
+  ]},
+  "Sexta":{label:"CARDIO + FULL BODY",icon:"🏃",color:"#10B981",exercises:[
+    {id:"sx1",name:"Esteira Ritmo Moderado",series:1,reps:"20min",tip:"Zona aeróbica: 60-70% da FC máxima"},
+    {id:"sx2",name:"Bicicleta Ergométrica",series:1,reps:"15min",tip:"Mantenha cadência constante acima de 80rpm"},
+    {id:"sx3",name:"Circuito Funcional",series:3,reps:"1 round",tip:"Burpee + Agachamento + Flexão + Prancha 30s cada"},
+  ]},
+};
+
+const days=Object.keys(workoutPlan);
+const todayIdx=new Date().getDay();
+const todayName=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"][todayIdx];
+
+let state={
+  activeDay:days.includes(todayName)?todayName:days[0],
+  completed:{},loads:{},history:{},photos:{},
+  view:"treino",editingKey:null,tempLoad:"",modalEx:null,
+};
+
+function loadS(){
+  try{state.completed=JSON.parse(localStorage.getItem("fc_done")||"{}");}catch{}
+  try{state.loads=JSON.parse(localStorage.getItem("fc_loads")||"{}");}catch{}
+  try{state.history=JSON.parse(localStorage.getItem("fc_hist")||"{}");}catch{}
+  try{state.photos=JSON.parse(localStorage.getItem("fc_photos")||"{}");}catch{}
 }
+function saveS(){
+  try{localStorage.setItem("fc_done",JSON.stringify(state.completed));}catch{}
+  try{localStorage.setItem("fc_loads",JSON.stringify(state.loads));}catch{}
+  try{localStorage.setItem("fc_hist",JSON.stringify(state.history));}catch{}
+  try{localStorage.setItem("fc_photos",JSON.stringify(state.photos));}catch{}
+}
+function prog(day){
+  const exs=workoutPlan[day].exercises;
+  const done=exs.filter(e=>state.completed[`${day}-${e.id}`]).length;
+  return{done,total:exs.length,pct:exs.length?Math.round((done/exs.length)*100):0};
+}
+function rgba(hex,a){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return`rgba(${r},${g},${b},${a})`;
+}
+function h(tag,attrs,...children){
+  const e=document.createElement(tag);
+  for(const[k,v]of Object.entries(attrs||{})){
+    if(k==="style"&&typeof v==="object")Object.assign(e.style,v);
+    else if(k.startsWith("on"))e.addEventListener(k.slice(2).toLowerCase(),v);
+    else e.setAttribute(k,v);
+  }
+  for(const c of children.flat()){if(c==null)continue;e.appendChild(typeof c==="string"?document.createTextNode(c):c);}
+  return e;
+}
+
+function toggle(day,id){const k=`${day}-${id}`;state.completed[k]=!state.completed[k];saveS();render();}
+function startEdit(k,l){state.editingKey=k;state.tempLoad=l?String(l):"";render();}
+function cancelEdit(){state.editingKey=null;state.tempLoad="";render();}
+function saveLoad(day,id){
+  const k=`${day}-${id}`,v=parseFloat(state.tempLoad);
+  if(!isNaN(v)&&v>0){
+    state.loads[k]=v;
+    const date=new Date().toLocaleDateString("pt-BR");
+    if(!state.history[k])state.history[k]=[];
+    state.history[k]=[...state.history[k],{date,kg:v}].slice(-12);
+  }
+  state.editingKey=null;state.tempLoad="";saveS();render();
+}
+function openModal(ex){state.modalEx=ex;render();}
+function closeModal(){state.modalEx=null;render();}
+function setView(v){state.view=v;render();}
+function setDay(d){state.activeDay=d;render();}
+
+function triggerPhoto(photoKey){
+  const input=document.getElementById("fileInput");
+  input.onchange=(e)=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    // Compress image before saving
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");
+      const MAX=800;
+      let w=img.width,wh=img.height;
+      if(w>MAX){wh=Math.round(wh*MAX/w);w=MAX;}
+      canvas.width=w;canvas.height=wh;
+      canvas.getContext("2d").drawImage(img,0,0,w,wh);
+      state.photos[photoKey]=canvas.toDataURL("image/jpeg",0.75);
+      URL.revokeObjectURL(url);
+      saveS();render();
+    };
+    img.src=url;
+    input.value="";
+  };
+  input.click();
+}
+function removePhoto(k){delete state.photos[k];saveS();render();}
+
+function render(){
+  const day=state.activeDay,cur=workoutPlan[day],accent=cur.color;
+  const{done,total,pct}=prog(day);
+  const weekDone=days.reduce((a,d)=>a+prog(d).done,0);
+
+  const header=h("div",{id:"header",style:{borderBottom:`2px solid ${accent}`}},
+    h("div",{class:"header-top"},
+      h("div",{},
+        h("div",{class:"header-label",style:{color:accent}},"SEMANA ATUAL"),
+        h("div",{class:"header-title"},"TREINO FIBRADO 💪"),
+      ),
+      h("div",{class:"week-badge",style:{background:rgba(accent,.1),border:`1.5px solid ${rgba(accent,.27)}`}},
+        h("div",{class:"week-badge-num",style:{color:accent}},String(weekDone)),
+        h("div",{class:"week-badge-lbl"},"SEMANA"),
+      ),
+    ),
+    h("div",{class:"nav"},
+      ...[{v:"treino",l:"🏋 Treino"},{v:"progresso",l:"📈 Progresso"}].map(({v,l})=>
+        h("button",{class:"nav-btn",style:{background:state.view===v?accent:"#12121e",color:state.view===v?"#000":"#444",borderColor:state.view===v?accent:"#1e1e2e"},onClick:()=>setView(v)},l)
+      )
+    ),
+  );
+
+  let content;
+  if(state.view==="treino"){
+    const tabs=h("div",{class:"day-tabs"},
+      ...days.map(d=>{
+        const{done:dd,total:dt,pct:dp}=prog(d);
+        const dc=workoutPlan[d].color,isA=d===day,isT=d===todayName;
+        const btn=h("button",{class:"day-btn",style:{background:isA?dc:"#0e0e1a",color:isA?"#000":isT?dc:"#555",borderColor:isA?dc:isT?rgba(dc,.4):"#1c1c2a"},onClick:()=>setDay(d)},
+          h("div",{style:{fontSize:"20px",lineHeight:"1"}},workoutPlan[d].icon),
+          h("div",{style:{fontSize:"12px",fontWeight:"800",marginTop:"4px"}},d),
+          h("div",{style:{fontSize:"10px",fontWeight:"700",marginTop:"2px",color:isA?"rgba(0,0,0,0.7)":dc}},`${dd}/${dt}`),
+        );
+        if(!isA&&dp>0)btn.appendChild(h("div",{style:{position:"absolute",bottom:"5px",left:"10%",right:"10%",height:"2px",background:"#1a1a2a",borderRadius:"1px"}},h("div",{style:{height:"100%",width:`${dp}%`,background:dc,borderRadius:"1px"}})));
+        if(isT&&!isA)btn.appendChild(h("div",{class:"day-btn-dot",style:{background:dc}}));
+        return btn;
+      })
+    );
+
+    const info=h("div",{class:"day-info"},
+      h("div",{class:"day-info-label",style:{color:accent}},`${cur.icon} ${day.toUpperCase()}${day===todayName?" — HOJE":""}`),
+      h("div",{class:"day-info-title"},cur.label),
+      h("div",{class:"prog-bar-meta"},h("span",{},`${done} de ${total} exercícios`),h("span",{style:{fontWeight:"800",color:pct===100?"#4ade80":accent}},`${pct}%`)),
+      h("div",{class:"prog-bar-bg"},h("div",{class:"prog-bar-fill",style:{width:`${pct}%`,background:`linear-gradient(90deg,${accent},${rgba(accent,.7)})`}})),
+    );
+
+    const cards=h("div",{class:"cards"},
+      ...cur.exercises.map((ex,i)=>{
+        const k=`${day}-${ex.id}`;
+        const isDone=!!state.completed[k],load=state.loads[k],hist=state.history[k]||[],isEditing=state.editingKey===k;
+        const photo=state.photos[k];
+
+        const thumb=photo
+          ?h("img",{class:"card-thumb",src:photo,alt:ex.name,onClick:()=>openModal(ex)})
+          :h("div",{class:"card-thumb-placeholder",title:"Toque para adicionar foto",onClick:()=>openModal(ex)},"📷");
+
+        const checkBtn=h("button",{class:"check-btn",style:{background:isDone?accent:"transparent",borderColor:isDone?accent:"#2a2a3a"},onClick:()=>toggle(day,ex.id)},isDone?"✓":"");
+
+        const cardTop=h("div",{class:"card-top"},checkBtn,
+          h("div",{class:"card-info"},
+            h("div",{class:`card-name${isDone?" done":""}`},ex.name),
+            h("div",{class:"card-sets"},`${ex.series} séries · ${ex.reps} reps`),
+          ),
+          thumb,
+        );
+
+        let loadContent;
+        if(isEditing){
+          const input=h("input",{class:"load-input",type:"number",placeholder:"kg",style:{border:`1.5px solid ${accent}`}});
+          input.value=state.tempLoad;
+          input.addEventListener("input",e=>{state.tempLoad=e.target.value;});
+          input.addEventListener("keydown",e=>{if(e.key==="Enter")saveLoad(day,ex.id);});
+          setTimeout(()=>input.focus(),0);
+          loadContent=h("div",{class:"load-input-wrap"},input,
+            h("button",{class:"load-ok",style:{background:accent},onClick:()=>saveLoad(day,ex.id)},"OK"),
+            h("button",{class:"load-cancel",onClick:cancelEdit},"✕"),
+          );
+        }else{
+          const inner=load
+            ?[h("span",{class:"load-kg",style:{color:accent}},String(load),h("span",{class:"load-unit"},"kg")),
+              hist.length>=2&&(()=>{const diff=load-hist[hist.length-2].kg;return diff!==0?h("span",{class:"load-diff",style:{color:diff>0?"#4ade80":"#f87171"}},`${diff>0?"↑":"↓"}${Math.abs(diff)}kg`):null;})()].filter(Boolean)
+            :[h("span",{class:"load-empty"},"sem carga registrada")];
+          loadContent=h("div",{class:"load-display"},...inner,h("button",{class:"load-edit-btn",onClick:()=>startEdit(k,load)},load?"✏ EDITAR":"+ ADD"));
+        }
+
+        const card=h("div",{class:`card${isDone?" done":""}`,style:{animationDelay:`${i*.055}s`,borderColor:isDone?rgba(accent,.27):"#1c1c2a",background:isDone?rgba(accent,.055):"#0e0e1a"}},
+          cardTop,h("div",{class:"card-load"},h("span",{class:"load-label"},"CARGA"),loadContent),
+        );
+
+        if(hist.length>1){
+          const mx=Math.max(...hist.map(x=>x.kg)),mn=Math.min(...hist.map(x=>x.kg));
+          card.appendChild(h("div",{class:"sparkline"},
+            ...hist.map((hh,hi)=>{const hp=mx===mn?50:((hh.kg-mn)/(mx-mn))*100;return h("div",{class:"spark-bar",style:{height:`${Math.max(4,hp*.22+4)}px`,background:hi===hist.length-1?accent:rgba(accent,.21)}});}),
+            h("span",{style:{fontSize:"8px",color:"#252535",marginLeft:"4px"}},`${hist.length}x`),
+          ));
+        }
+        return card;
+      })
+    );
+    content=h("div",{},tabs,info,cards);
+  }else{
+    const grid=h("div",{class:"prog-grid"},...days.map(d=>{
+      const{done:dd,total:dt,pct:dp}=prog(d);const dc=workoutPlan[d].color,complete=dd===dt&&dt>0;
+      return h("div",{class:"prog-card",style:{borderColor:complete?rgba(dc,.53):"#1c1c2a"},onClick:()=>{state.activeDay=d;setView("treino");}},
+        h("div",{class:"prog-card-head"},h("div",{},h("div",{class:"prog-card-label",style:{color:dc}},workoutPlan[d].label),h("div",{class:"prog-card-sub"},d.toUpperCase())),h("div",{class:"prog-card-pct",style:{color:complete?"#4ade80":dc}},`${dp}%`)),
+        h("div",{class:"prog-card-bar-bg"},h("div",{class:"prog-card-bar",style:{width:`${dp}%`,background:dc}})),
+        h("div",{class:"prog-card-count"},`${dd}/${dt} concluídos`),
+      );
+    }));
+    const histSecs=days.map(d=>{
+      const dc=workoutPlan[d].color;
+      const wh=workoutPlan[d].exercises.filter(ex=>(state.history[`${d}-${ex.id}`]||[]).length>0);
+      if(!wh.length)return null;
+      return h("div",{class:"hist-section"},
+        h("div",{class:"hist-day-lbl",style:{color:dc}},`${workoutPlan[d].icon} ${d.toUpperCase()} — ${workoutPlan[d].label}`),
+        ...wh.map(ex=>{
+          const hist=state.history[`${d}-${ex.id}`],last=hist[hist.length-1];
+          const mx=Math.max(...hist.map(x=>x.kg)),mn=Math.min(...hist.map(x=>x.kg));
+          return h("div",{class:"hist-card"},
+            h("div",{class:"hist-card-head"},h("div",{class:"hist-card-name"},ex.name),h("div",{class:"hist-card-kg",style:{color:dc}},String(last.kg),h("small",{},"kg"))),
+            h("div",{class:"hist-sparkline"},...hist.map((hh,hi)=>{const hp=mx===mn?50:((hh.kg-mn)/(mx-mn))*100;return h("div",{class:"hist-spark-bar",style:{height:`${Math.max(5,hp*.26+5)}px`,background:hi===hist.length-1?dc:rgba(dc,.21)}});})),
+            h("div",{class:"hist-dates"},h("span",{},hist[0].date),h("span",{},last.date)),
+          );
+        })
+      );
+    }).filter(Boolean);
+    content=h("div",{class:"prog-view"},
+      h("div",{class:"prog-section-lbl"},"VISÃO GERAL DA SEMANA"),grid,
+      h("div",{class:"prog-section-lbl"},"HISTÓRICO DE CARGAS"),
+      ...(histSecs.length>0?histSecs:[h("div",{class:"empty-hist"},h("div",{style:{fontSize:"48px",marginBottom:"14px"}},"📊"),h("div",{style:{fontSize:"15px",fontFamily:"Barlow,sans-serif"}},"Registre suas cargas para ver o histórico"))]),
+    );
+  }
+
+  // MODAL
+  let modal=null;
+  if(state.modalEx){
+    const ex=state.modalEx,ac=workoutPlan[state.activeDay].color;
+    const k=`${state.activeDay}-${ex.id}`,photo=state.photos[k];
+
+    const imgArea=h("div",{class:"modal-img-area"},
+      photo
+        ?h("img",{src:photo,alt:ex.name})
+        :h("div",{class:"modal-img-empty"},h("span",{},"📷"),h("p",{},"Nenhuma foto adicionada"))
+    );
+
+    const actions=[
+      h("button",{class:"upload-btn",style:{background:ac},onClick:()=>triggerPhoto(k)},photo?"🔄 Trocar foto":"📷 Adicionar minha foto"),
+    ];
+    if(photo)actions.push(h("button",{class:"remove-btn",onClick:()=>removePhoto(k)},"🗑 Remover foto"));
+    actions.push(
+      h("div",{class:"modal-tip",style:{background:rgba(ac,.08),border:`1px solid ${rgba(ac,.2)}`}},h("span",{style:{fontSize:"18px"}},"💡"),h("div",{class:"modal-tip-text"},ex.tip||"")),
+      h("div",{class:"modal-stats"},...[{l:"SÉRIES",v:ex.series},{l:"REPS",v:ex.reps}].map(({l,v})=>
+        h("div",{class:"modal-stat",style:{background:rgba(ac,.11),border:`1px solid ${rgba(ac,.22)}`}},h("div",{class:"modal-stat-val",style:{color:ac}},String(v)),h("div",{class:"modal-stat-lbl"},l))
+      )),
+    );
+
+    modal=h("div",{class:"modal-overlay",onClick:closeModal},
+      h("div",{class:"modal-box",style:{border:`1.5px solid ${rgba(ac,.33)}`},onClick:e=>e.stopPropagation()},
+        h("div",{class:"modal-header",style:{background:rgba(ac,.09)}},
+          h("div",{class:"modal-header-info"},h("div",{class:"modal-header-tag",style:{color:ac}},"EXERCÍCIO"),h("div",{class:"modal-header-name"},ex.name)),
+          h("button",{class:"modal-close",onClick:closeModal},"✕"),
+        ),
+        imgArea,
+        h("div",{class:"modal-actions"},...actions),
+      )
+    );
+  }
+
+  const app=document.getElementById("app");
+  app.innerHTML="";
+  app.appendChild(header);
+  app.appendChild(content);
+  if(modal)app.appendChild(modal);
+  document.onkeydown=(e)=>{if(e.key==="Escape"&&state.modalEx)closeModal();};
+}
+
+loadS();
+render();
+</script>
+</body>
+</html>
